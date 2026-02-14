@@ -1,9 +1,22 @@
 #!/bin/bash
 
+set -euo pipefail
+
+# Check for required dependencies
+for cmd in git jq curl pbcopy osascript; do
+    command -v "$cmd" >/dev/null 2>&1 || { echo "Error: Required command '$cmd' not found. Please install it first."; exit 1; }
+done
+
 # --- CONFIGURATION ---
 JIRA_DOMAIN=$JIRA_DOMAIN
 EMAIL=$JIRA_EMAIL
 API_TOKEN=$JIRA_API_TOKEN
+
+# Validate Jira credentials
+if [ -z "$JIRA_DOMAIN" ] || [ -z "$EMAIL" ] || [ -z "$API_TOKEN" ]; then
+    echo "Error: Missing Jira credentials. Please set JIRA_DOMAIN, JIRA_EMAIL, and JIRA_API_TOKEN environment variables."
+    exit 1
+fi
 
 # --- DEFAULTS (overridable via .worktree.conf) ---
 BASE_BRANCH="develop"
@@ -38,6 +51,10 @@ usage() {
 while [[ $# -gt 0 ]]; do
     case $1 in
         -p|--project)
+            if [ -z "${2:-}" ] || [[ "${2:-}" == -* ]]; then
+                echo "Error: -p requires a path argument."
+                exit 1
+            fi
             PROJECT_PATH="$2"
             shift 2
             ;;
@@ -87,13 +104,25 @@ fi
 
 # --- 1. FETCH JIRA TICKET ---
 echo "Fetching Jira ticket $ISSUE_KEY..."
-AUTH=$(echo -n "$EMAIL:$API_TOKEN" | base64)
+AUTH=$(printf '%s' "$EMAIL:$API_TOKEN" | base64)
 
-RESPONSE=$(curl -s -H "Authorization: Basic $AUTH" \
+# Fetch ticket with HTTP status check
+HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/jira_response_$$.json \
+     -H "Authorization: Basic $AUTH" \
      -H "Content-Type: application/json" \
      "https://$JIRA_DOMAIN/rest/api/3/issue/$ISSUE_KEY")
 
-TITLE=$(echo $RESPONSE | jq -r '.fields.summary')
+if [ "$HTTP_CODE" -ne 200 ]; then
+    echo "Error: Failed to fetch ticket $ISSUE_KEY (HTTP $HTTP_CODE)"
+    cat /tmp/jira_response_$$.json
+    rm -f /tmp/jira_response_$$.json
+    exit 1
+fi
+
+RESPONSE=$(cat /tmp/jira_response_$$.json)
+rm -f /tmp/jira_response_$$.json
+
+TITLE=$(echo "$RESPONSE" | jq -r '.fields.summary')
 DESC=$(echo "$RESPONSE" | jq -r '
   [.fields.description // empty | recurse(.content[]?) | select(.type == "text") | .text]
   | if length > 0 then join("\n") else "No description provided." end
@@ -108,7 +137,10 @@ fi
 echo "   Title: $TITLE"
 
 # --- 2. CREATE WORKTREE ---
-SAFE_DESC=$(echo "$TITLE" | tr ' ' '-')
+# Sanitize title for use in branch name: replace special chars with hyphens, collapse multiple hyphens, trim
+SAFE_DESC=$(echo "$TITLE" | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+# Truncate to 60 characters to avoid excessively long branch names
+SAFE_DESC=$(echo "$SAFE_DESC" | cut -c1-60 | sed 's/-$//')
 FOLDER_NAME="$ISSUE_KEY"
 BRANCH_NAME="${ISSUE_KEY}_${SAFE_DESC}"
 TARGET_DIR="$WORKTREES_ROOT/$FOLDER_NAME"
@@ -126,10 +158,25 @@ echo "   Branch: $BRANCH_NAME"
 echo "   Base:   origin/$BASE_BRANCH"
 
 cd "$PROJECT_PATH" || { echo "Error: Cannot access $PROJECT_PATH"; exit 1; }
-git fetch origin "$BASE_BRANCH"
-git worktree add "$TARGET_DIR" "origin/$BASE_BRANCH" -b "$BRANCH_NAME" || { echo "Error: Worktree creation failed"; exit 1; }
-cd "$TARGET_DIR"
-git branch --unset-upstream
+
+# Clean up any stale worktree metadata from manually deleted directories
+git worktree prune
+
+# Fetch the base branch
+git fetch origin "$BASE_BRANCH" || { echo "Error: Could not fetch branch '$BASE_BRANCH' from origin. Check your network and branch name."; exit 1; }
+
+# Check if branch already exists (e.g., from a previously removed worktree)
+if git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
+    echo "   Branch $BRANCH_NAME already exists, reusing it..."
+    git worktree add "$TARGET_DIR" "$BRANCH_NAME" || { echo "Error: Worktree creation failed"; exit 1; }
+else
+    git worktree add "$TARGET_DIR" "origin/$BASE_BRANCH" -b "$BRANCH_NAME" || { echo "Error: Worktree creation failed"; exit 1; }
+fi
+
+cd "$TARGET_DIR" || { echo "Error: Cannot access $TARGET_DIR"; exit 1; }
+
+# Unset upstream to prevent accidental push to wrong branch (suppress error if no upstream set)
+git branch --unset-upstream 2>/dev/null || true
 
 # --- 3. COPY CONFIG FILES ---
 if [ ${#COPY_FILES[@]} -gt 0 ] || [ ${#COPY_DIRS[@]} -gt 0 ]; then
@@ -160,8 +207,8 @@ done
 # --- 4. LAUNCH TERMINAL + CLAUDE ---
 echo "Opening terminal and launching Claude..."
 
-# Prepare the ticket description for pasting
-printf "[$ISSUE_KEY] $TITLE\n\n$DESC" | pbcopy
+# Prepare the ticket description for pasting (use %s to avoid format specifier injection)
+printf '%s\n\n%s\n\nWhen you'\''re done implementing this, create a pull request using:\ngh pr create --base %s' "[$ISSUE_KEY] $TITLE" "$DESC" "$BASE_BRANCH" | pbcopy
 
 case "$TERMINAL" in
     warp)

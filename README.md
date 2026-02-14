@@ -40,8 +40,8 @@ ticket_to_claude_worktree PROJ-123
 That's it. The script will:
 1. Fetch the ticket title and description from Jira
 2. Create a worktree branched off your base branch
-3. Copy any configured project files
-4. Open a new terminal window with Claude, ticket context pasted and ready
+3. Copy any configured project files (if configured in .worktree.conf)
+4. Open a new terminal window with Claude, ticket context pasted (press Enter to submit)
 
 ## Usage
 
@@ -52,8 +52,8 @@ ticket_to_claude_worktree [-p /path/to/project] TICKET-123
 | Flag | Description |
 |------|-------------|
 | `TICKET-123` | The Jira issue key (required) |
-| `-p PATH` | Path to the git project root. Defaults to the current git repository. |
-| `-h` | Show help |
+| `-p PATH`, `--project PATH` | Path to the git project root. Defaults to the current git repository. |
+| `-h`, `--help` | Show help |
 
 ### Examples
 
@@ -78,8 +78,9 @@ Create a `.worktree.conf` file in your project root to customize behavior. All f
 # Branch to base new worktrees on (default: develop)
 BASE_BRANCH=main
 
-# Where to create worktrees (default: ../Worktrees, relative to project root)
-WORKTREES_DIR=../Worktrees
+# Where to create worktrees (default: Worktrees, resolves relative to project's parent directory)
+# e.g., if project is ~/Projects/my-app, worktrees go to ~/Projects/Worktrees
+WORKTREES_DIR=Worktrees
 
 # Individual files to copy into the worktree
 COPY_FILES=(local.properties app/google-services.json .env)
@@ -88,17 +89,32 @@ COPY_FILES=(local.properties app/google-services.json .env)
 COPY_DIRS=(keystores .gradle)
 
 # Terminal to use: warp | iterm | terminal (default: warp)
+# If set to an unknown value, opens Finder and prints manual instructions
 TERMINAL=warp
 
 # Claude CLI flags (default: --permission-mode plan)
 CLAUDE_MODE="--permission-mode plan"
 ```
 
+### Branch Naming
+
+Branches are automatically named using the pattern: `TICKET-KEY_Title-With-Hyphens`
+
+For example, ticket `PROJ-42` with title "Fix login button" becomes branch `PROJ-42_Fix-login-button`.
+
+### Terminal Fallback
+
+If `TERMINAL` is set to a value other than `warp`, `iterm`, or `terminal`, the script will:
+- Open the worktree directory in Finder
+- Print manual instructions to run Claude
+- Copy the ticket description to your clipboard for pasting
+
 ### Example Configs
 
 **Android (Kotlin/Java):**
 ```bash
 BASE_BRANCH=develop
+WORKTREES_DIR=Worktrees
 COPY_FILES=(local.properties app/google-services.json)
 COPY_DIRS=(keystores .gradle)
 ```
@@ -106,6 +122,7 @@ COPY_DIRS=(keystores .gradle)
 **iOS (Swift):**
 ```bash
 BASE_BRANCH=main
+WORKTREES_DIR=Worktrees
 COPY_FILES=(.env xcconfig/Development.xcconfig)
 COPY_DIRS=(Pods)
 ```
@@ -113,6 +130,7 @@ COPY_DIRS=(Pods)
 **React / Next.js:**
 ```bash
 BASE_BRANCH=main
+WORKTREES_DIR=Worktrees
 COPY_FILES=(.env .env.local)
 COPY_DIRS=(node_modules)
 ```
@@ -120,6 +138,7 @@ COPY_DIRS=(node_modules)
 **Flutter:**
 ```bash
 BASE_BRANCH=main
+WORKTREES_DIR=Worktrees
 COPY_FILES=(.env android/local.properties android/app/google-services.json)
 COPY_DIRS=(.dart_tool)
 ```
@@ -127,6 +146,7 @@ COPY_DIRS=(.dart_tool)
 **Python / Django:**
 ```bash
 BASE_BRANCH=main
+WORKTREES_DIR=Worktrees
 COPY_FILES=(.env)
 COPY_DIRS=(.venv)
 ```
@@ -134,6 +154,7 @@ COPY_DIRS=(.venv)
 **Go:**
 ```bash
 BASE_BRANCH=main
+WORKTREES_DIR=Worktrees
 COPY_FILES=(.env)
 ```
 
@@ -142,7 +163,7 @@ COPY_FILES=(.env)
 | Setting | Default |
 |---------|---------|
 | `BASE_BRANCH` | `develop` |
-| `WORKTREES_DIR` | `../Worktrees` (sibling to project) |
+| `WORKTREES_DIR` | `Worktrees` (resolves to sibling of project) |
 | `COPY_FILES` | *(none)* |
 | `COPY_DIRS` | *(none)* |
 | `TERMINAL` | `warp` |
@@ -169,7 +190,7 @@ Each worktree is a fully independent checkout. You can build, test, and run them
 
 ## Worktree Cleanup
 
-When Claude finishes and the PR is merged:
+When Claude finishes and you create and merge a PR:
 
 ```bash
 # From the main project directory
@@ -198,8 +219,8 @@ git worktree prune
                      └────────┬─────────┘        (in parallel)
                               │
                      ┌────────▼─────────┐
-                     │  Review Claude's │
-                     │  PR when ready   │
+                     │  Create and      │
+                     │  review PR       │
                      └──────────────────┘
 ```
 
