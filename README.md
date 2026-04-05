@@ -1,31 +1,31 @@
-# ticket_to_claude_worktree
+# mic-drop
 
 Turn a Jira ticket into an isolated git worktree with Claude Code running automatically — in one command.
 
+```bash
+mic-drop PROJ-123
+```
+
 ## Prerequisites
 
-- [Git](https://git-scm.com/) (with worktree support, 2.5+)
-- [jq](https://jqlang.github.io/jq/) — `brew install jq`
+- [Node.js](https://nodejs.org/) 18+
+- [Git](https://git-scm.com/) 2.5+ (worktree support)
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — `npm install -g @anthropic-ai/claude-code`
 - A Jira Cloud instance with API access
-- macOS (uses `osascript` and `pbcopy` for terminal automation)
 
 ## Installation
 
-1. Clone or copy the script:
-
 ```bash
-cp ticket_to_claude_worktree.sh /usr/local/bin/ticket_to_claude_worktree
-chmod +x /usr/local/bin/ticket_to_claude_worktree
+npm install -g @michael_magdy/mic-drop
 ```
 
-2. Set your Jira credentials as environment variables (add to your `~/.zshrc` or `~/.bashrc`):
+Then run the setup wizard once:
 
 ```bash
-export JIRA_DOMAIN="yourcompany.atlassian.net"
-export JIRA_EMAIL="you@company.com"
-export JIRA_API_TOKEN="your-jira-api-token"
+mic-drop setup
 ```
+
+This will ask for your Jira credentials and save them securely to your OS keychain (macOS Keychain, Linux Secret Service, or Windows Credential Manager). No environment variables needed.
 
 To generate a Jira API token, go to [Atlassian API Tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
 
@@ -34,67 +34,69 @@ To generate a Jira API token, go to [Atlassian API Tokens](https://id.atlassian.
 ```bash
 # From inside any git repository
 cd ~/Projects/my-app
-ticket_to_claude_worktree PROJ-123
+mic-drop PROJ-123
 ```
 
-That's it. The script will:
+That's it. The tool will:
 1. Fetch the ticket title and description from Jira
-2. Create a worktree branched off your base branch
-3. Copy any configured project files (if configured in .worktree.conf)
-4. Open a new terminal window with Claude, ticket context pasted (press Enter to submit)
+2. Create a worktree at `.worktrees/PROJ-123/` branched off your base branch
+3. Copy any configured project files (if configured in `.worktree.json`)
+4. Open a new terminal window with Claude, ticket context pasted and ready to submit
 
 ## Usage
 
 ```
-ticket_to_claude_worktree [-p /path/to/project] TICKET-123
+mic-drop [options] <TICKET-123>
+mic-drop setup
 ```
 
-| Flag | Description |
-|------|-------------|
+| Option | Description |
+|--------|-------------|
 | `TICKET-123` | The Jira issue key (required) |
-| `-p PATH`, `--project PATH` | Path to the git project root. Defaults to the current git repository. |
-| `-h`, `--help` | Show help |
+| `-p, --project <path>` | Path to the git project root. Defaults to the current git repository. |
+| `-a, --auto` | Auto-submit the ticket to Claude without waiting for review |
+| `-h, --help` | Show help |
 
 ### Examples
 
 ```bash
 # Use the current directory's git root
-ticket_to_claude_worktree PROJ-42
+mic-drop PROJ-42
 
 # Specify a project explicitly
-ticket_to_claude_worktree -p ~/AndroidStudioProjects/MyApp PROJ-42
+mic-drop -p ~/Projects/my-app PROJ-42
 
-# Works from anywhere if you pass -p
-ticket_to_claude_worktree -p ~/Projects/web-frontend WEB-108
+# Auto-submit without review
+mic-drop PROJ-42 --auto
 ```
 
 ## Project Configuration
 
-Create a `.worktree.conf` file in your project root to customize behavior. All fields are optional — sensible defaults are used when omitted.
+Create a `.worktree.json` file in your project root to customize behaviour. All fields are optional — sensible defaults are used when omitted.
 
-```bash
-# .worktree.conf
-
-# Branch to base new worktrees on (default: develop)
-BASE_BRANCH=main
-
-# Where to create worktrees (default: Worktrees, resolves relative to project's parent directory)
-# e.g., if project is ~/Projects/my-app, worktrees go to ~/Projects/Worktrees
-WORKTREES_DIR=Worktrees
-
-# Individual files to copy into the worktree
-COPY_FILES=(local.properties app/google-services.json .env)
-
-# Directories to copy into the worktree
-COPY_DIRS=(keystores .gradle)
-
-# Terminal to use: warp | iterm | terminal (default: warp)
-# If set to an unknown value, opens Finder and prints manual instructions
-TERMINAL=warp
-
-# Claude CLI flags (default: --permission-mode plan)
-CLAUDE_MODE="--permission-mode plan"
+```json
+{
+  "baseBranch": "main",
+  "worktreesDir": ".worktrees",
+  "copyFiles": [".env", ".env.local"],
+  "copyDirs": [],
+  "terminal": "warp",
+  "claudeMode": "--permission-mode plan"
+}
 ```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `baseBranch` | `develop` | Branch to base new worktrees on |
+| `worktreesDir` | `.worktrees` | Where to create worktrees, relative to project root |
+| `copyFiles` | `[]` | Files to copy from the main project into the worktree |
+| `copyDirs` | `[]` | Directories to copy recursively |
+| `terminal` | `warp` | Terminal to use: `warp`, `iterm`, `terminal` |
+| `claudeMode` | `--permission-mode plan` | Flags passed to the `claude` CLI |
+
+### Legacy `.worktree.conf`
+
+If your project has an existing bash-style `.worktree.conf`, `mic-drop` will read it automatically and prompt you to migrate to `.worktree.json`.
 
 ### Branch Naming
 
@@ -102,106 +104,60 @@ Branches are automatically named using the pattern: `TICKET-KEY_Title-With-Hyphe
 
 For example, ticket `PROJ-42` with title "Fix login button" becomes branch `PROJ-42_Fix-login-button`.
 
-### Terminal Fallback
-
-If `TERMINAL` is set to a value other than `warp`, `iterm`, or `terminal`, the script will:
-- Open the worktree directory in Finder
-- Print manual instructions to run Claude
-- Copy the ticket description to your clipboard for pasting
-
 ### Example Configs
 
-**Android (Kotlin/Java):**
-```bash
-BASE_BRANCH=develop
-WORKTREES_DIR=Worktrees
-COPY_FILES=(local.properties app/google-services.json)
-COPY_DIRS=(keystores .gradle)
-```
-
-**iOS (Swift):**
-```bash
-BASE_BRANCH=main
-WORKTREES_DIR=Worktrees
-COPY_FILES=(.env xcconfig/Development.xcconfig)
-COPY_DIRS=(Pods)
-```
-
 **React / Next.js:**
-```bash
-BASE_BRANCH=main
-WORKTREES_DIR=Worktrees
-COPY_FILES=(.env .env.local)
-COPY_DIRS=(node_modules)
+```json
+{
+  "baseBranch": "main",
+  "copyFiles": [".env", ".env.local"]
+}
 ```
 
-**Flutter:**
-```bash
-BASE_BRANCH=main
-WORKTREES_DIR=Worktrees
-COPY_FILES=(.env android/local.properties android/app/google-services.json)
-COPY_DIRS=(.dart_tool)
+**Android (Kotlin/Java):**
+```json
+{
+  "baseBranch": "develop",
+  "copyFiles": ["local.properties", "app/google-services.json"],
+  "copyDirs": ["keystores", ".gradle"]
+}
 ```
 
 **Python / Django:**
-```bash
-BASE_BRANCH=main
-WORKTREES_DIR=Worktrees
-COPY_FILES=(.env)
-COPY_DIRS=(.venv)
+```json
+{
+  "baseBranch": "main",
+  "copyFiles": [".env"],
+  "copyDirs": [".venv"]
+}
 ```
-
-**Go:**
-```bash
-BASE_BRANCH=main
-WORKTREES_DIR=Worktrees
-COPY_FILES=(.env)
-```
-
-## Defaults
-
-| Setting | Default |
-|---------|---------|
-| `BASE_BRANCH` | `develop` |
-| `WORKTREES_DIR` | `Worktrees` (resolves to sibling of project) |
-| `COPY_FILES` | *(none)* |
-| `COPY_DIRS` | *(none)* |
-| `TERMINAL` | `warp` |
-| `CLAUDE_MODE` | `--permission-mode plan` |
 
 ## Directory Structure
 
-After running the script, your file system looks like this:
+After running, your file system looks like this:
 
 ```
-~/Projects/
-├── my-app/                  # Your main working copy (untouched)
-│   ├── .git/
-│   ├── .worktree.conf
-│   └── src/
-└── Worktrees/
-    ├── PROJ-42/             # Claude is working here
-    │   └── src/
-    └── PROJ-43/             # Another Claude instance here
-        └── src/
+~/Projects/my-app/
+├── .git/
+├── .worktrees/          ← added to .gitignore automatically
+│   └── PROJ-42/         ← Claude is working here (isolated branch)
+│       └── src/
+├── .worktree.json
+└── src/                 ← your main branch, untouched
 ```
 
-Each worktree is a fully independent checkout. You can build, test, and run them separately.
+Each worktree is a fully independent checkout on its own branch. You can build, test, and run them separately while Claude works.
 
 ## Worktree Cleanup
 
-When Claude finishes and you create and merge a PR:
+When Claude finishes and you've merged the PR:
 
 ```bash
 # From the main project directory
-cd ~/Projects/my-app
-git worktree remove ../Worktrees/PROJ-42
+git worktree remove .worktrees/PROJ-42
 git branch -d PROJ-42_Fix-login-button
-```
 
-Or remove all finished worktrees at once:
-
-```bash
+# Or prune all finished worktrees at once:
 git worktree prune
 ```
 
@@ -209,37 +165,43 @@ git worktree prune
 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Jira Board │────▶│  Run the script  │────▶│  Claude works   │
-│  Pick ticket│     │  One command     │     │  independently  │
+│  Jira Board │────▶│  mic-drop PROJ-42 │────▶│  Claude works   │
+│  Pick ticket│     │  One command      │     │  independently  │
 └─────────────┘     └──────────────────┘     └────────┬────────┘
-                                                      │
-                     ┌──────────────────┐             │
-                     │  You keep coding │             │
-                     │  on your branch  │◀────────────┘
-                     └────────┬─────────┘        (in parallel)
+                                                       │
+                     ┌──────────────────┐              │
+                     │  You keep coding │              │
+                     │  on your branch  │◀─────────────┘
+                     └────────┬─────────┘         (in parallel)
                               │
                      ┌────────▼─────────┐
-                     │  Create and      │
-                     │  review PR       │
+                     │  Review and      │
+                     │  merge the PR    │
                      └──────────────────┘
 ```
 
 ## Troubleshooting
 
+**"No credentials found. Run: mic-drop setup"**
+Run `mic-drop setup` to configure your Jira credentials.
+
 **"Not inside a git repository"**
 Run the command from inside a git repo, or pass `-p /path/to/project`.
 
-**"Could not fetch ticket"**
-Check that your `JIRA_DOMAIN`, `JIRA_EMAIL`, and `JIRA_API_TOKEN` environment variables are set correctly.
+**Could not fetch ticket**
+Check that your Jira domain, email, and API token are correct. Run `mic-drop setup` to reconfigure.
 
-**"Worktree creation failed"**
-The branch name may already exist. Check with `git branch -a` and delete the stale branch if needed.
-
-**"Directory already exists"**
-A worktree for that ticket was already created. Remove it first with `git worktree remove`.
+**"Worktree already exists"**
+A worktree for that ticket was already created. Remove it first:
+```bash
+git worktree remove .worktrees/PROJ-42
+```
 
 **Files not being copied**
-Verify paths in `COPY_FILES` and `COPY_DIRS` are relative to the project root. The script will warn about missing files but won't fail.
+Verify paths in `copyFiles` and `copyDirs` are relative to the project root. The tool will warn about missing files but won't fail.
+
+**Terminal opens but Claude doesn't start (Warp)**
+macOS requires Accessibility permissions for terminal automation. Go to **System Preferences → Privacy & Security → Accessibility** and ensure your terminal app is listed.
 
 ## License
 

@@ -4,56 +4,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A single Bash script (`ticket_to_claude_worktree.sh`) that automates the workflow of taking a Jira ticket and spinning up an isolated git worktree with Claude Code running inside it. The repo also includes `article.md` (a write-up about the tool) and `README.md`.
+`mic-drop` is a TypeScript npm CLI (`npm install -g mic-drop`) that turns a Jira ticket into an isolated git worktree with Claude Code running automatically — in one command. The original bash prototype lives in `ticket_to_claude_worktree.sh` for reference.
 
-## Installation & Usage
-
-```bash
-# Install globally
-cp ticket_to_claude_worktree.sh /usr/local/bin/ticket_to_claude_worktree
-chmod +x /usr/local/bin/ticket_to_claude_worktree
-
-# Run from inside a git repo
-ticket_to_claude_worktree PROJ-123
-
-# Run with explicit project path
-ticket_to_claude_worktree -p ~/Projects/my-app PROJ-123
-```
-
-Required environment variables: `JIRA_DOMAIN`, `JIRA_EMAIL`, `JIRA_API_TOKEN`
-
-## Script Flow
-
-1. **Validate** — checks for `git`, `jq`, `curl`, `pbcopy`, `osascript` and Jira credentials
-2. **Load config** — sources `.worktree.conf` from the project root if present
-3. **Fetch ticket** — calls Jira REST API v3, extracts summary and description text nodes from the Atlassian Document Format JSON
-4. **Create worktree** — sanitizes the ticket title into a branch name (`TICKET-KEY_Title-With-Hyphens`, max 60 chars), fetches `origin/$BASE_BRANCH`, creates a new git worktree at `$WORKTREES_ROOT/$ISSUE_KEY/`
-5. **Copy files** — copies `COPY_FILES` and `COPY_DIRS` from the main project into the worktree
-6. **Launch terminal** — opens Warp/iTerm/Terminal via `osascript`, starts `claude $CLAUDE_MODE` inside the worktree, and pastes the ticket context from the clipboard
-
-## Project Configuration (`.worktree.conf`)
-
-Placed in the target project root (not this repo). Key options:
-
-| Variable | Default | Notes |
-|----------|---------|-------|
-| `BASE_BRANCH` | `develop` | Branch to base worktrees on |
-| `WORKTREES_DIR` | `Worktrees` | Relative to the project's parent directory |
-| `COPY_FILES` | `()` | Array of files to copy into the worktree |
-| `COPY_DIRS` | `()` | Array of directories to copy |
-| `TERMINAL` | `warp` | `warp`, `iterm`, or `terminal` |
-| `CLAUDE_MODE` | `--permission-mode plan` | Flags passed to the `claude` CLI |
-
-## Worktree Cleanup
+## Commands
 
 ```bash
-cd ~/Projects/my-app
-git worktree remove ../Worktrees/PROJ-42
-git branch -d PROJ-42_Fix-login-button
-# Or prune all stale worktrees:
-git worktree prune
+npm run build       # compile TypeScript via tsup → dist/
+npm run dev         # watch mode
+npm run test        # run vitest tests
+npm install -g .    # install locally for testing
 ```
 
-## macOS-Only Constraints
+## Architecture
 
-The script uses `osascript` (AppleScript) for terminal automation and `pbcopy` for clipboard access. It only works on macOS. If `TERMINAL` is set to an unrecognized value, it falls back to opening Finder and printing manual instructions.
+```
+src/
+├── index.ts                    # CLI entry (commander), registers commands
+├── commands/
+│   ├── setup.ts                # mic-drop setup — interactive wizard
+│   └── run.ts                  # mic-drop PROJ-123 — main command
+├── config/
+│   ├── schema.ts               # Zod schema + ProjectConfig type
+│   ├── credentials.ts          # keytar read/write (OS keychain)
+│   └── projectConfig.ts        # .worktree.json load/save + .worktree.conf migration
+├── jira/
+│   ├── client.ts               # Jira REST API v3, credential verification
+│   └── adfParser.ts            # Atlassian Document Format → plain text
+├── git/
+│   ├── worktree.ts             # createWorktree, excludeFromWorktree, copyProjectFiles
+│   └── gitignore.ts            # ensureGitignoreEntry (idempotent)
+├── terminal/
+│   ├── types.ts                # TerminalLauncher interface + LaunchOptions
+│   ├── registry.ts             # getLauncher(), getAvailableLaunchers()
+│   ├── clipboard.ts            # copyToClipboard (cross-platform)
+│   ├── fallback.ts             # prints manual instructions
+│   └── launchers/
+│       ├── warp.ts             # macOS Warp (open -a + .start-claude.sh + AppleScript)
+│       ├── iterm.ts            # macOS iTerm2 (AppleScript write text)
+│       ├── terminal-app.ts     # macOS Terminal.app (AppleScript do script)
+│       ├── gnome-terminal.ts   # Linux GNOME Terminal (Phase 2)
+│       ├── konsole.ts          # Linux Konsole (Phase 2)
+│       └── windows-terminal.ts # Windows Terminal (Phase 3)
+├── ticket/
+│   └── formatter.ts            # builds .ticket.md content
+└── utils/
+    ├── logger.ts               # chalk-based info/warn/error/success
+    ├── spinner.ts              # ora wrapper
+    ├── slugify.ts              # ticket title → safe branch name (60 char max)
+    └── platform.ts             # isMac / isLinux / isWindows
+```
+
+## Key Behaviours
+
+- **Credentials** stored in OS keychain via `keytar` (macOS Keychain / Linux Secret Service / Windows Credential Manager). Service name: `mic-drop`.
+- **Config** loaded from `.worktree.json` in project root; falls back to legacy `.worktree.conf` with a bash-style parser (no shell execution).
+- **Worktrees** created inside the repo at `.worktrees/<ISSUE-KEY>/` by default. `.worktrees/` is added to `.gitignore` automatically.
+- **Generated files** (`.ticket.md`, `.start-claude.sh`) are hidden from `git status` via the worktree's local `.git/worktrees/<name>/info/exclude` — never committed.
+- **Terminal launch** (Warp): writes `.start-claude.sh` to the worktree, opens Warp, types `bash .start-claude.sh` via AppleScript after a 2s sleep.
+
+## `.worktree.json` Schema
+
+```json
+{
+  "baseBranch": "develop",
+  "worktreesDir": ".worktrees",
+  "copyFiles": [],
+  "copyDirs": [],
+  "terminal": "warp",
+  "claudeMode": "--permission-mode plan"
+}
+```

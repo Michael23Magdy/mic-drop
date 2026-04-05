@@ -3,7 +3,7 @@ import fs from "fs";
 import { loadCredentials } from "../config/credentials.js";
 import { loadProjectConfig } from "../config/projectConfig.js";
 import { fetchIssue } from "../jira/client.js";
-import { createWorktree, copyProjectFiles, resolveRepoRoot, GitNotRepoError, WorktreeExistsError } from "../git/worktree.js";
+import { createWorktree, copyProjectFiles, resolveRepoRoot, excludeFromWorktree, GitNotRepoError, WorktreeExistsError } from "../git/worktree.js";
 import { ensureGitignoreEntry } from "../git/gitignore.js";
 import { buildBranchName } from "../utils/slugify.js";
 import { formatTicketFile } from "../ticket/formatter.js";
@@ -104,6 +104,9 @@ export async function runTicket(issueKey: string, opts: RunOptions): Promise<voi
   const ticketFile = path.join(targetDir, ".ticket.md");
   fs.writeFileSync(ticketFile, ticketContent, "utf-8");
   logger.success("Wrote .ticket.md");
+
+  // Hide generated files from git status (worktree-local, never committed)
+  await excludeFromWorktree(targetDir, [".ticket.md", ".start-claude.sh"]);
 
   // --- 9. Ensure .gitignore ---
   ensureGitignoreEntry(repoRoot, config.worktreesDir);

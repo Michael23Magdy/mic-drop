@@ -97,6 +97,34 @@ export async function createWorktree(
 }
 
 /**
+ * Adds entries to the worktree-local git exclude file (.git/info/exclude).
+ * These files are hidden from `git status` without touching .gitignore.
+ */
+export async function excludeFromWorktree(
+  worktreeDir: string,
+  entries: string[]
+): Promise<void> {
+  const git = simpleGit(worktreeDir);
+  // Resolves to the real git dir, e.g. /main/.git/worktrees/PROJ-42
+  const gitDir = (await git.revparse(["--git-dir"])).trim();
+  const absoluteGitDir = path.isAbsolute(gitDir)
+    ? gitDir
+    : path.join(worktreeDir, gitDir);
+  const excludePath = path.join(absoluteGitDir, "info", "exclude");
+
+  fs.mkdirSync(path.dirname(excludePath), { recursive: true });
+
+  const existing = fs.existsSync(excludePath)
+    ? fs.readFileSync(excludePath, "utf-8")
+    : "";
+  const existingLines = existing.split("\n");
+  const toAdd = entries.filter((e) => !existingLines.includes(e));
+  if (toAdd.length > 0) {
+    fs.appendFileSync(excludePath, toAdd.join("\n") + "\n", "utf-8");
+  }
+}
+
+/**
  * Copies files and directories from the project root into the worktree.
  * Warns on missing entries but does not fail.
  */

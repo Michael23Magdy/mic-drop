@@ -1,6 +1,7 @@
 {
-  "name": "mic-drop",
+  "name": "@michael_magdy/mic-drop",
   "version": "0.1.0",
+  "author": "Michael Magdy",
   "description": "Turn a Jira ticket into an isolated git worktree with Claude Code running automatically — in one command.",
   "type": "commonjs",
   "main": "dist/index.js",
