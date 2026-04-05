@@ -1,0 +1,11 @@
+import chalk from "chalk";
+
+export const logger = {
+  info: (msg: string) => console.log(chalk.cyan("  " + msg)),
+  success: (msg: string) => console.log(chalk.green("  ✓ " + msg)),
+  warn: (msg: string) => console.log(chalk.yellow("  ⚠ " + msg)),
+  error: (msg: string) => console.error(chalk.red("  ✗ " + msg)),
+  step: (msg: string) => console.log(chalk.bold("\n" + msg)),
+  detail: (label: string, value: string) =>
+    console.log(chalk.gray("    " + label + ":") + " " + value),
+};

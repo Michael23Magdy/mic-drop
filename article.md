@@ -16,7 +16,7 @@ That's the workflow:
 
 1. You pick a ticket from the board.
 2. You run one command.
-3. A git worktree is created, config files are copied (if configured), Claude launches with the ticket context already pasted (edit prompt as u like and submit).
+3. A git worktree is created, config files are copied (if configured), Claude launches with the ticket context already pasted (edit the prompt as you like and submit).
 4. You go back to your main branch and keep working.
 
 No context switching. No copy-pasting ticket descriptions. No manually creating branches. One command, and Claude is off to the races in its own directory while you stay productive in yours.
@@ -38,9 +38,9 @@ Here's what a productive day looks like with this workflow:
 
 ```
 9:00 AM  You start feature A on main worktree
-9:15 AM  Ticket PROJ-42 needs a fix → run the script → Claude is ready (you approve its plan)
+9:15 AM  Ticket PROJ-42 needs a fix → mic-drop PROJ-42 → Claude is ready (you approve its plan)
 9:16 AM  You continue feature A
-9:30 AM  Ticket PROJ-43 is a small refactor → run the script → another Claude instance
+9:30 AM  Ticket PROJ-43 is a small refactor → mic-drop PROJ-43 → another Claude instance
 9:31 AM  Still working on feature A, uninterrupted
 10:00 AM Review Claude's changes for PROJ-42, create PR, approve and merge
 10:05 AM Review PROJ-43, request one change, Claude fixes it
@@ -49,26 +49,44 @@ Here's what a productive day looks like with this workflow:
 
 You just got three things done in the time it used to take for one. Not because you worked faster, but because you stopped waiting.
 
-## What the Script Actually Does
+## What the Tool Actually Does
 
-Behind one command, the script handles the full setup:
+Behind one command, `mic-drop` handles the full setup:
 
 1. **Fetches the Jira ticket** — pulls the title and description via the Jira API.
-2. **Creates a git worktree** — branches off your base branch into an isolated directory.
-3. **Copies project config** (if configured via .worktree.conf) — secrets, build caches, environment files.
-4. **Launches Claude in a new terminal** — opens your terminal of choice, starts Claude in plan mode, and pastes the ticket description (you must press Enter to submit).
+2. **Creates a git worktree** — branches off your base branch into `.worktrees/PROJ-42/` inside your repo.
+3. **Copies project config** (if configured via `.worktree.json`) — secrets, build caches, environment files.
+4. **Launches Claude in a new terminal** — opens your terminal of choice, starts Claude in plan mode, and pastes the ticket description so you can review and add `@file` references before submitting.
 
-You don't touch any of it. The script does the plumbing; you stay focused on your work.
+You don't touch any of it. The tool does the plumbing; you stay focused on your work.
+
+## Getting Started
+
+Install once:
+
+```bash
+npm install -g mic-drop
+mic-drop setup
+```
+
+The setup wizard asks for your Jira credentials and saves them securely to your OS keychain — no environment variables, no `.env` files to manage.
+
+Then from any project:
+
+```bash
+cd ~/Projects/my-app
+mic-drop PROJ-123
+```
 
 ## It Works for Any Project
 
-The script isn't tied to Android, iOS, React, or any specific stack. Each project gets a `.worktree.conf` file that tells the script what to copy and which branch to base off:
+The tool isn't tied to Android, iOS, React, or any specific stack. Each project gets a `.worktree.json` file that tells the tool what to copy and which branch to base off:
 
 - An Android project copies `local.properties`, `google-services.json`, and the Gradle cache.
 - A Node project copies `.env` and maybe `node_modules`.
 - A Go project might copy just `.env`.
 
-Same script. Different config. Any project.
+Same tool. Different config. Any project.
 
 ## The Mindset Shift
 
@@ -90,6 +108,6 @@ This isn't magic. It works best when:
 
 ## Getting Started
 
-The script is open source and takes about two minutes to set up. See the [README](README.md) for installation and configuration.
+The tool is open source. See the [README](README.md) for full configuration options.
 
 Stop waiting. Start parallelizing.
