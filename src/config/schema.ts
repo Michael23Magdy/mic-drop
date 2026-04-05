@@ -6,7 +6,9 @@ export const ProjectConfigSchema = z.object({
   copyFiles: z.array(z.string()).default([]),
   copyDirs: z.array(z.string()).default([]),
   terminal: z.string().default("warp"),
-  claudeMode: z.string().default("--permission-mode plan"),
+  cliTool: z.string().default("claude"),
+  cliCommand: z.string().default("claude"),
+  cliFlags: z.string().default("--permission-mode plan"),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -17,5 +19,7 @@ export const PROJECT_CONFIG_DEFAULTS: ProjectConfig = {
   copyFiles: [],
   copyDirs: [],
   terminal: "warp",
-  claudeMode: "--permission-mode plan",
+  cliTool: "claude",
+  cliCommand: "claude",
+  cliFlags: "--permission-mode plan",
 };

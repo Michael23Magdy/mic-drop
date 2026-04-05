@@ -1,0 +1,10 @@
+{
+  "baseBranch": "develop",
+  "worktreesDir": ".worktrees",
+  "copyFiles": [],
+  "copyDirs": [],
+  "terminal": "warp",
+  "cliTool": "claude",
+  "cliCommand": "claude",
+  "cliFlags": "--permission-mode plan"
+}

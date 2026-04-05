@@ -2,6 +2,7 @@ import { input, password, confirm, select } from "@inquirer/prompts";
 import path from "path";
 import { loadCredentials, saveCredentials } from "../config/credentials.js";
 import { loadProjectConfig, saveProjectConfig } from "../config/projectConfig.js";
+import { CLI_TOOLS, getCliTool } from "../config/cliTools.js";
 import { verifyCredentials, JiraAuthError } from "../jira/client.js";
 import { getAvailableLaunchers } from "../terminal/registry.js";
 import { ensureGitignoreEntry } from "../git/gitignore.js";
@@ -129,9 +130,38 @@ export async function runSetup(): Promise<void> {
         })
       : terminalChoices[0].value;
 
-  const claudeMode = await input({
-    message: "Claude CLI flags:",
-    default: existing.claudeMode,
+  const cliToolId = await select({
+    message: "AI CLI tool:",
+    choices: CLI_TOOLS.map((t) => ({ name: t.label, value: t.id })),
+    default: existing.cliTool,
+  });
+
+  const toolDef = getCliTool(cliToolId)!;
+
+  let cliCommand: string;
+  if (cliToolId === "other") {
+    console.log('  Enter the CLI command to run (e.g. "my-ai-tool").');
+    console.log('  It will be invoked as: <command> <flags> "$(cat .ticket.md)"');
+    cliCommand = await input({
+      message: "CLI command:",
+      default: existing.cliTool === "other" ? existing.cliCommand : "",
+      validate: (v) => (v.trim() ? true : "Required"),
+    });
+  } else {
+    cliCommand = toolDef.command;
+  }
+
+  // Pre-fill flags with the tool's safe default, or keep existing if same tool was already configured
+  const flagsDefault =
+    toolDef.defaultFlags !== ""
+      ? toolDef.defaultFlags
+      : existing.cliTool === cliToolId
+        ? existing.cliFlags
+        : "";
+
+  const cliFlags = await input({
+    message: `${cliToolId === "other" ? "CLI" : toolDef.label} flags:`,
+    default: flagsDefault,
   });
 
   const parseList = (raw: string) =>
@@ -146,7 +176,9 @@ export async function runSetup(): Promise<void> {
     copyFiles: parseList(copyFilesRaw),
     copyDirs: parseList(copyDirsRaw),
     terminal,
-    claudeMode: claudeMode.trim() || "--permission-mode plan",
+    cliTool: cliToolId,
+    cliCommand: cliCommand.trim(),
+    cliFlags: cliFlags.trim(),
   };
 
   saveProjectConfig(repoRoot, newConfig);

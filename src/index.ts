@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { version } from "../package.json";
 import { runSetup } from "./commands/setup.js";
 import { runTicket } from "./commands/run.js";
 
@@ -7,7 +8,7 @@ const program = new Command();
 program
   .name("mic-drop")
   .description("Turn a Jira ticket into an isolated git worktree with Claude Code — in one command.")
-  .version("0.1.0");
+  .version(version);
 
 program
   .command("setup")
