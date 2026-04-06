@@ -18,6 +18,13 @@ export async function loadProjectConfig(repoRoot: string): Promise<{
 
   if (fs.existsSync(jsonPath)) {
     const raw = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+    // Migrate legacy claudeMode field
+    if ("claudeMode" in raw && !("cliTool" in raw)) {
+      raw.cliTool    = "claude";
+      raw.cliCommand = "claude";
+      raw.cliFlags   = raw.claudeMode;
+      delete raw.claudeMode;
+    }
     const config = ProjectConfigSchema.parse(raw);
     return { config, source: "json" };
   }
@@ -72,12 +79,15 @@ function parseLegacyConf(content: string): ProjectConfig {
     }
   }
 
+  const legacyFlags = partial["CLAUDE_MODE"] as string | undefined;
   return ProjectConfigSchema.parse({
     baseBranch: partial["BASE_BRANCH"],
     worktreesDir: partial["WORKTREES_DIR"],
     copyFiles: partial["COPY_FILES"],
     copyDirs: partial["COPY_DIRS"],
     terminal: partial["TERMINAL"],
-    claudeMode: partial["CLAUDE_MODE"],
+    cliTool: "claude",
+    cliCommand: "claude",
+    cliFlags: legacyFlags,
   });
 }

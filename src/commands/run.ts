@@ -112,9 +112,12 @@ export async function runTicket(issueKey: string, opts: RunOptions): Promise<voi
   ensureGitignoreEntry(repoRoot, config.worktreesDir);
   logger.success("Updated .gitignore");
 
-  // --- 10. Build the claude command ---
+  // --- 10. Build the CLI command ---
   // Shell substitution: $(cat .ticket.md) expands the ticket content inline
-  const claudeCommand = `claude ${config.claudeMode} "$(cat .ticket.md)"`;
+  const flags = config.cliFlags.trim();
+  const claudeCommand = flags
+    ? `${config.cliCommand} ${flags} "$(cat .ticket.md)"`
+    : `${config.cliCommand} "$(cat .ticket.md)"`;
 
   // --- 11. Launch terminal ---
   logger.step("Launching terminal...");

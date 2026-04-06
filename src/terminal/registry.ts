@@ -1,6 +1,7 @@
 import { TerminalLauncher } from "./types.js";
 import { FallbackLauncher } from "./fallback.js";
 import { WarpLauncher } from "./launchers/warp.js";
+import { WarpWindowsLauncher } from "./launchers/warp-windows.js";
 import { ITermLauncher } from "./launchers/iterm.js";
 import { TerminalAppLauncher } from "./launchers/terminal-app.js";
 import { GnomeTerminalLauncher } from "./launchers/gnome-terminal.js";
@@ -9,6 +10,7 @@ import { WindowsTerminalLauncher } from "./launchers/windows-terminal.js";
 
 const ALL_LAUNCHERS: TerminalLauncher[] = [
   new WarpLauncher(),
+  new WarpWindowsLauncher(),
   new ITermLauncher(),
   new TerminalAppLauncher(),
   new GnomeTerminalLauncher(),
