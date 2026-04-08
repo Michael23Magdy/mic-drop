@@ -100,8 +100,8 @@ Create a `.worktree.json` file in your project root to customize behaviour. All 
 |-------|---------|-------------|
 | `baseBranch` | `develop` | Branch to base new worktrees on |
 | `worktreesDir` | `.worktrees` | Where to create worktrees, relative to project root |
-| `copyFiles` | `[]` | Files to copy from the main project into the worktree |
-| `copyDirs` | `[]` | Directories to copy recursively |
+| `copyFiles` | `[]` | Files to copy from the main project into the worktree (e.g. `.env`, `local.properties`, signing keystores). The worktree won't have these otherwise — copy anything the project needs to build or run. |
+| `copyDirs` | `[]` | Directories to copy recursively (e.g. `.gradle`, `.venv`, `node_modules`). Useful for caches that are expensive to rebuild from scratch inside the worktree. |
 | `terminal` | `warp` | Terminal to use: `warp`, `iterm`, `terminal` |
 | `claudeMode` | `--permission-mode plan` | Flags passed to the `claude` CLI |
 
@@ -111,7 +111,7 @@ If your project has an existing bash-style `.worktree.conf`, `mic-drop` will rea
 
 ### Branch Naming
 
-Branches are automatically named using the pattern: `TICKET-KEY_Title-With-Hyphens`
+Branches are automatically created from `origin/<baseBranch>` and named using the pattern: `TICKET-KEY_Title-With-Hyphens` (max 60 characters).
 
 For example, ticket `PROJ-42` with title "Fix login button" becomes branch `PROJ-42_Fix-login-button`.
 

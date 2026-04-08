@@ -102,6 +102,13 @@ export async function runSetup(): Promise<void> {
     default: existing.worktreesDir,
   });
 
+  console.log(
+    "\n  Worktrees start empty — copy any files or directories your project needs to build or run."
+  );
+  console.log(
+    "  Common examples: .env files, signing keystores, local.properties, build caches (.gradle, .venv).\n"
+  );
+
   const copyFilesRaw = await input({
     message: "Files to copy into worktree (comma-separated, or leave empty):",
     default: existing.copyFiles.join(", "),

@@ -54,7 +54,7 @@ You just got three things done in the time it used to take for one. Not because 
 Behind one command, `mic-drop` handles the full setup:
 
 1. **Fetches the Jira ticket** — pulls the title and description via the Jira API.
-2. **Creates a git worktree** — branches off your base branch into `.worktrees/PROJ-42/` inside your repo.
+2. **Creates a git worktree** — creates a new branch from `origin/<baseBranch>` (configured per project) named after the ticket key and title: `PROJ-42_Fix-login-button`. The worktree lives at `.worktrees/PROJ-42/` inside your repo, fully isolated from your main checkout.
 3. **Copies project config** (if configured via `.worktree.json`) — secrets, build caches, environment files.
 4. **Launches the agent in a new terminal** — opens your terminal of choice, starts the agent in plan mode with the ticket saved as `.ticket.md`. In normal mode you reference it with `@.ticket.md` and add your own context before submitting; in auto mode (`--auto`) the ticket is sent as the initial prompt immediately.
 
@@ -65,7 +65,7 @@ You don't touch any of it. The tool does the plumbing; you stay focused on your 
 Install once:
 
 ```bash
-npm install -g mic-drop
+npm install -g @michael_magdy/mic-drop
 mic-drop setup
 ```
 
@@ -102,9 +102,10 @@ Your job shifts from *doing the work* to *reviewing the work*. And reviewing cha
 
 This isn't magic. It works best when:
 
-- **Tickets are well-defined.** Garbage in, garbage out. If the ticket says "fix the thing," Claude will struggle just like a junior developer would.
-- **The codebase has good structure.** Claude navigates well-organized projects much better than spaghetti code.
-- **You review the output.** Claude is fast, not infallible. Review its changes like you'd review any other developer's code — read the diff, run the tests, push back when needed.
+- **Tickets are well-defined.** Garbage in, garbage out. If the ticket says "fix the thing," the agent will struggle just like a junior developer would.
+- **The codebase has good structure.** The agent navigates well-organized projects much better than spaghetti code.
+- **You review the output.** The agent is fast, not infallible. Review its changes like you'd review any other developer's code — read the diff, run the tests, push back when needed.
+- **The scope is contained.** Small bugs, small refactors, and direct one-off changes are the sweet spot. While you focus on a complex feature that needs your full attention, the agent handles the queue of straightforward tickets in parallel.
 
 ## Getting Started
 
