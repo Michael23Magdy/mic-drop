@@ -19,7 +19,7 @@ export class WarpWindowsLauncher implements TerminalLauncher {
   async launch({ workingDirectory, command }: LaunchOptions): Promise<void> {
     // Write the command to a script file — same approach as macOS.
     // Warp on Windows runs bash (via Git Bash / WSL), so .sh works.
-    const scriptPath = path.join(workingDirectory, ".start-claude.sh");
+    const scriptPath = path.join(workingDirectory, ".start-agent.sh");
     fs.writeFileSync(scriptPath, `#!/bin/bash\n${command}\n`);
 
     // Open Warp in the worktree directory
@@ -35,7 +35,7 @@ export class WarpWindowsLauncher implements TerminalLauncher {
     // Use PowerShell SendKeys to type the launch command — mirrors the macOS AppleScript approach
     const psScript = [
       `Add-Type -AssemblyName System.Windows.Forms`,
-      `[System.Windows.Forms.SendKeys]::SendWait("bash .start-claude.sh{ENTER}")`,
+      `[System.Windows.Forms.SendKeys]::SendWait("bash .start-agent.sh{ENTER}")`,
     ].join("; ");
 
     spawn("powershell", ["-NoProfile", "-Command", psScript], {

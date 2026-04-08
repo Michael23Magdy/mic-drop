@@ -2,8 +2,8 @@ import { JiraIssue } from "../jira/client.js";
 
 /**
  * Formats the ticket info into a markdown file written to the worktree.
- * This file is passed as the initial message to Claude via shell substitution:
- *   claude --permission-mode plan "$(cat .ticket.md)"
+ * In auto mode, this file is passed as the initial prompt via shell substitution.
+ * In normal mode, the user references it manually with @.ticket.md in the agent session.
  */
 export function formatTicketFile(issue: JiraIssue, baseBranch: string): string {
   return [

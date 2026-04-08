@@ -16,7 +16,7 @@ That's the workflow:
 
 1. You pick a ticket from the board.
 2. You run one command.
-3. A git worktree is created, config files are copied (if configured), Claude launches with the ticket context already pasted (edit the prompt as you like and submit).
+3. A git worktree is created, config files are copied (if configured), and the agent session opens with the ticket saved as `.ticket.md`. Reference it with `@.ticket.md`, add your notes, and submit — or use `--auto` to have it sent immediately.
 4. You go back to your main branch and keep working.
 
 No context switching. No copy-pasting ticket descriptions. No manually creating branches. One command, and Claude is off to the races in its own directory while you stay productive in yours.
@@ -38,12 +38,12 @@ Here's what a productive day looks like with this workflow:
 
 ```
 9:00 AM  You start feature A on main worktree
-9:15 AM  Ticket PROJ-42 needs a fix → mic-drop PROJ-42 → Claude is ready (you approve its plan)
+9:15 AM  Ticket PROJ-42 needs a fix → mic-drop PROJ-42 --auto → agent starts immediately
 9:16 AM  You continue feature A
-9:30 AM  Ticket PROJ-43 is a small refactor → mic-drop PROJ-43 → another Claude instance
+9:30 AM  Ticket PROJ-43 is a small refactor → mic-drop PROJ-43 → add notes, reference files, submit
 9:31 AM  Still working on feature A, uninterrupted
-10:00 AM Review Claude's changes for PROJ-42, create PR, approve and merge
-10:05 AM Review PROJ-43, request one change, Claude fixes it
+10:00 AM Review agent's changes for PROJ-42, create PR, approve and merge
+10:05 AM Review PROJ-43, request one change, agent fixes it
 10:10 AM Back to feature A
 ```
 
@@ -56,7 +56,7 @@ Behind one command, `mic-drop` handles the full setup:
 1. **Fetches the Jira ticket** — pulls the title and description via the Jira API.
 2. **Creates a git worktree** — branches off your base branch into `.worktrees/PROJ-42/` inside your repo.
 3. **Copies project config** (if configured via `.worktree.json`) — secrets, build caches, environment files.
-4. **Launches Claude in a new terminal** — opens your terminal of choice, starts Claude in plan mode, and pastes the ticket description so you can review and add `@file` references before submitting.
+4. **Launches the agent in a new terminal** — opens your terminal of choice, starts the agent in plan mode with the ticket saved as `.ticket.md`. In normal mode you reference it with `@.ticket.md` and add your own context before submitting; in auto mode (`--auto`) the ticket is sent as the initial prompt immediately.
 
 You don't touch any of it. The tool does the plumbing; you stay focused on your work.
 
@@ -96,7 +96,7 @@ Most developers treat Claude like a pair programmer: you sit together, you talk,
 
 A Jira ticket with a clear title, description, and acceptance criteria is a self-contained unit of work. It doesn't need you hovering. It needs an agent that can read the spec, understand the codebase, and produce code changes that you can turn into a pull request.
 
-Your job shifts from *doing the work* to *reviewing the work*. And reviewing changes takes a fraction of the time it takes to write the code. Claude works in plan mode, so you'll approve its approach before it executes, ensuring alignment without hovering.
+Your job shifts from *doing the work* to *reviewing the work*. And reviewing changes takes a fraction of the time it takes to write the code. The agent works in plan mode, so you'll approve its approach before it executes, ensuring alignment without hovering.
 
 ## The Limits
 

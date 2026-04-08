@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs";
 import { loadCredentials } from "../config/credentials.js";
 import { loadProjectConfig } from "../config/projectConfig.js";
+import { ProjectConfig } from "../config/schema.js";
 import { fetchIssue } from "../jira/client.js";
 import { createWorktree, copyProjectFiles, resolveRepoRoot, excludeFromWorktree, GitNotRepoError, WorktreeExistsError } from "../git/worktree.js";
 import { ensureGitignoreEntry } from "../git/gitignore.js";
@@ -13,6 +14,13 @@ import { logger } from "../utils/logger.js";
 
 export interface RunOptions {
   project?: string;
+  auto?: boolean;
+}
+
+function buildCliCommand(config: ProjectConfig, auto: boolean): string {
+  const flags = config.cliFlags.trim();
+  const base = flags ? `${config.cliCommand} ${flags}` : config.cliCommand;
+  return auto ? `${base} "$(cat .ticket.md)"` : base;
 }
 
 export async function runTicket(issueKey: string, opts: RunOptions): Promise<void> {
@@ -106,31 +114,29 @@ export async function runTicket(issueKey: string, opts: RunOptions): Promise<voi
   logger.success("Wrote .ticket.md");
 
   // Hide generated files from git status (worktree-local, never committed)
-  await excludeFromWorktree(targetDir, [".ticket.md", ".start-claude.sh"]);
+  await excludeFromWorktree(targetDir, [".ticket.md", ".start-agent.sh"]);
 
   // --- 9. Ensure .gitignore ---
   ensureGitignoreEntry(repoRoot, config.worktreesDir);
   logger.success("Updated .gitignore");
 
   // --- 10. Build the CLI command ---
-  // Shell substitution: $(cat .ticket.md) expands the ticket content inline
-  const flags = config.cliFlags.trim();
-  const claudeCommand = flags
-    ? `${config.cliCommand} ${flags} "$(cat .ticket.md)"`
-    : `${config.cliCommand} "$(cat .ticket.md)"`;
+  const agentCommand = buildCliCommand(config, opts.auto ?? false);
+  if (!opts.auto) {
+    logger.info("Normal mode: the agent will start without the ticket pre-loaded. Reference .ticket.md in your session when ready.");
+  }
 
   // --- 11. Launch terminal ---
   logger.step("Launching terminal...");
   const launcher = getLauncher(config.terminal);
   logger.detail("Terminal", launcher.name);
   logger.detail("Directory", targetDir);
-  logger.detail("Command", claudeCommand);
+  logger.detail("Command", agentCommand);
 
   await launcher.launch({
     workingDirectory: targetDir,
-    command: claudeCommand,
+    command: agentCommand,
   });
 
-  logger.success(`Done! Claude is starting in ${launcher.name === "fallback" ? "manual mode" : launcher.name}.`);
-  console.log();
+  logger.success(`Done! Agent is starting in ${launcher.name === "fallback" ? "manual mode" : launcher.name}.`);
 }

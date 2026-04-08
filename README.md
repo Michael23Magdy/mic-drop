@@ -1,6 +1,6 @@
 # mic-drop
 
-Turn a Jira ticket into an isolated git worktree with Claude Code running automatically — in one command.
+Turn a Jira ticket into an isolated git worktree with your AI agent — in one command.
 
 ```bash
 mic-drop PROJ-123
@@ -41,7 +41,7 @@ That's it. The tool will:
 1. Fetch the ticket title and description from Jira
 2. Create a worktree at `.worktrees/PROJ-123/` branched off your base branch
 3. Copy any configured project files (if configured in `.worktree.json`)
-4. Open a new terminal window with Claude, ticket context pasted and ready to submit
+4. Open a new terminal window with the agent session ready — reference `@.ticket.md` to load the ticket context, or use `--auto` to have it sent automatically
 
 ## Usage
 
@@ -54,20 +54,31 @@ mic-drop setup
 |--------|-------------|
 | `TICKET-123` | The Jira issue key (required) |
 | `-p, --project <path>` | Path to the git project root. Defaults to the current git repository. |
-| `-a, --auto` | Auto-submit the ticket to Claude without waiting for review |
+| `-a, --auto` | Auto mode: send the ticket as the initial agent prompt automatically |
 | `-h, --help` | Show help |
+
+### Modes
+
+**Normal mode** (default) — `mic-drop PROJ-42`
+
+The agent session starts with no pre-loaded context. Reference `@.ticket.md` in your first message, add implementation notes, mention relevant files, then submit when ready.
+
+**Auto mode** — `mic-drop PROJ-42 --auto`
+
+The ticket content is sent as the initial prompt automatically, so the agent starts working immediately without waiting for you.
 
 ### Examples
 
 ```bash
-# Use the current directory's git root
+# Normal mode — session starts, you add context and submit
 mic-drop PROJ-42
 
 # Specify a project explicitly
 mic-drop -p ~/Projects/my-app PROJ-42
 
-# Auto-submit without review
+# Auto mode — ticket sent as initial prompt automatically
 mic-drop PROJ-42 --auto
+mic-drop PROJ-42 -a
 ```
 
 ## Project Configuration

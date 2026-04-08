@@ -7,7 +7,7 @@ const program = new Command();
 
 program
   .name("mic-drop")
-  .description("Turn a Jira ticket into an isolated git worktree with Claude Code — in one command.")
+  .description("Turn a Jira ticket into an isolated git worktree with your AI agent — in one command.")
   .version(version);
 
 program
@@ -20,8 +20,9 @@ program
 program
   .argument("<issue-key>", "Jira issue key (e.g. PROJ-123)")
   .option("-p, --project <path>", "Path to the git project root (defaults to current directory)")
-  .description("Create a worktree and launch Claude for the given Jira ticket")
-  .action(async (issueKey: string, opts: { project?: string }) => {
+  .option("-a, --auto", "Auto mode: send ticket content as the initial agent prompt")
+  .description("Create a worktree and launch the AI agent for the given Jira ticket")
+  .action(async (issueKey: string, opts: { project?: string; auto?: boolean }) => {
     await runTicket(issueKey, opts);
   });
 
