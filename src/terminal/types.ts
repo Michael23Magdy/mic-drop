@@ -1,6 +1,6 @@
 export interface LaunchOptions {
   workingDirectory: string;
-  /** The full shell command to run, e.g. claude --permission-mode plan "$(cat .ticket.md)" */
+  /** The full shell command to run, e.g. claude --permission-mode plan "$(cat .ticket.md)" in auto mode, or just claude --permission-mode plan in normal mode */
   command: string;
 }
 
